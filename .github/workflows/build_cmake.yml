@@ -1,0 +1,39 @@
+name: CMake build
+
+on: [push]
+
+env:
+  CMAKE_VERSION: 3.24.3
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: ubuntu-latest
+    env:
+      BUILD_WRAPPER_OUT_DIR: build_wrapper_output
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build
+
+    - name: Install sonar-scanner and build-wrapper
+      uses: SonarSource/sonarcloud-github-c-cpp@v1
+
+    - name: Configure
+      run: cmake -B ${{github.workspace}}/build -G Ninja
+
+    - name: Run buildwrapper
+      run: |
+        build-wrapper-linux-x86-64 --out-dir ${{env.BUILD_WRAPPER_OUT_DIR}} \
+          cmake --build ${{github.workspace}}/build
+
+    - name: Run sonar-scanner
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        SONAR_TOKEN: ${{secrets.SONAR_TOKEN}}
+      run: |
+        sonar-scanner --define sonar.cfamily.build-wrapper-output="${{env.BUILD_WRAPPER_OUT_DIR}}"
